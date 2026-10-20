@@ -1,6 +1,6 @@
 import { ROUTES } from '../api/routes';
 
-export default function Sidebar({ user, view, onView, onLogout, lastFetch }) {
+export default function Sidebar({ user, view, onView, onLogout, lastFetch, publicMode = false }) {
   const operations = ROUTES.find((r) => r.id === 'operations');
   return (
     <aside className="sidebar">
@@ -41,12 +41,17 @@ export default function Sidebar({ user, view, onView, onLogout, lastFetch }) {
           <span className="sidebar__avatar">{user?.fullName?.[0] ?? '?'}</span>
           <div className="sidebar__user-info">
             <div className="sidebar__user-name">{user?.fullName}</div>
-            <div className="sidebar__user-role">{user?.role}</div>
+            <div className="sidebar__user-role">
+              {user?.role}
+              {publicMode ? ' · public view' : ''}
+            </div>
           </div>
         </div>
-        <button className="btn btn--ghost btn--block" onClick={onLogout}>
-          Sign out
-        </button>
+        {!publicMode && (
+          <button className="btn btn--ghost btn--block" onClick={onLogout}>
+            Sign out
+          </button>
+        )}
       </div>
     </aside>
   );

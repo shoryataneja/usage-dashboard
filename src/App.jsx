@@ -14,7 +14,8 @@ const EMPTY_FILTERS = { thId: 'all', tlId: 'all', branchId: 'all' };
 
 export default function App() {
   const [user, setUser] = useState(null);
-  const [booting, setBooting] = useState(Boolean(getToken()));
+  const [booting, setBooting] = useState(true);
+  const [publicMode, setPublicMode] = useState(false);
   const [view, setView] = useState('dashboard');
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [period, setPeriod] = useState('mtd');
@@ -22,16 +23,26 @@ export default function App() {
   const [lastFetch, setLastFetch] = useState(null);
   const [drawerMember, setDrawerMember] = useState(null);
 
-  // ── Session restore: GET /auth/me with the stored token ──────────────────
+  // ── Session restore: always try GET /auth/me once ───────────────────────
+  // With a stored token it restores the session as before. With NO token it
+  // probes anyway: if the backend has USAGE_PUBLIC enabled it answers
+  // anonymously and the viewer enters the dashboard without a login screen
+  // (publicMode); if it answers 401 the normal login screen shows.
   useEffect(() => {
-    if (!getToken()) return;
+    const hadToken = Boolean(getToken());
     let cancelled = false;
     apiFetch('/auth/me')
       .then(({ data }) => {
-        if (!cancelled) setUser(data);
+        if (!cancelled) {
+          setUser(data);
+          setPublicMode(!hadToken);
+        }
       })
       .catch(() => {
-        if (!cancelled) setToken(null);
+        if (!cancelled) {
+          setToken(null);
+          setPublicMode(false);
+        }
       })
       .finally(() => {
         if (!cancelled) setBooting(false);
@@ -97,7 +108,14 @@ export default function App() {
 
   return (
     <div className="layout">
-      <Sidebar user={user} view={view} onView={setView} onLogout={handleLogout} lastFetch={lastFetch} />
+      <Sidebar
+        user={user}
+        view={view}
+        onView={setView}
+        onLogout={handleLogout}
+        lastFetch={lastFetch}
+        publicMode={publicMode}
+      />
 
       <main className="main">
         {view === 'dashboard' && (
