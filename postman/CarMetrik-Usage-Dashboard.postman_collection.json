@@ -1,0 +1,232 @@
+{
+  "info": {
+    "_postman_id": "carmetrik-usage-dashboard-0001",
+    "name": "CarMetrik Usage Dashboard",
+    "description": "Every backend route the Carmetrics Usage Dashboard consumes. Run them in order.\n\n1) Login first — it stores the JWT as {{jwt}} automatically.\n2) GET /auth/me stores your organizationId as {{organizationId}}.\n3) Every other request reads {{baseUrl}} and sends Authorization: Bearer {{jwt}}.\n\nReal example IDs (from the live dev DB) are pre-filled as disabled params so you can toggle them on.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "11864312"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{jwt}}", "type": "string" }
+    ]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "1. Login  →  saves {{jwt}}",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.success && j.data && j.data.accessToken) {",
+                  "    pm.environment.set('jwt', j.data.accessToken);",
+                  "    pm.test('JWT saved to environment', () => true);",
+                  "} else {",
+                  "    pm.test('Login did not return a token', () => pm.expect.fail(JSON.stringify(j)));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobileNumber\": \"8882096255\",\n  \"password\": \"shorya123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "auth", "login" ]
+            },
+            "description": "Exchange mobile + password for a JWT. Test script auto-saves the token as {{jwt}}. (Shorya / ADMIN is pre-filled — change if you like.)"
+          }
+        },
+        {
+          "name": "2. Me  →  saves {{organizationId}}",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.success && j.data && j.data.organizationId) {",
+                  "    pm.environment.set('organizationId', j.data.organizationId);",
+                  "    pm.environment.set('myUserId', j.data.id);",
+                  "    pm.test('organizationId saved to environment', () => true);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [ { "key": "token", "value": "{{jwt}}", "type": "string" } ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "auth", "me" ]
+            },
+            "description": "Restores the session from the stored token. Test script auto-saves organizationId (needed by the branches route)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Operations Dashboard",
+      "item": [
+        {
+          "name": "3. Operations dashboard  (main)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [ { "key": "token", "value": "{{jwt}}", "type": "string" } ]
+            },
+            "query": [
+              { "key": "thId", "value": "7ae46862-cdfc-46a9-964a-fa6a1614d53b", "disabled": true, "description": "Example TH: Nandish B Raju. Enable to filter to one territory." },
+              { "key": "tlId", "value": "ffa992ff-b5c0-4a78-8b38-6bd118fdad3e", "disabled": true, "description": "Example TL: Pavan B Indresh. Enable to filter to one squad." },
+              { "key": "branchId", "value": "eb7c5e4c-d4cd-4ea4-972e-bab67d1e8550", "disabled": true, "description": "Example branch: PopWorks. Enable to filter to one branch." }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/analytics/operations",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "analytics", "operations" ]
+            },
+            "description": "THE main route. Returns members[] (per-person today/WTD/MTD/overall + status split), branches[] (rollups), totals[] (grand totals) and meta.avgTat. DRAFTs excluded. Toggle the disabled params on to see server-side filtering."
+          }
+        },
+        {
+          "name": "4. Team valuation queue  (drawer)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [ { "key": "token", "value": "{{jwt}}", "type": "string" } ]
+            },
+            "query": [
+              { "key": "poId", "value": "e47c7bbc-4ab4-4e1b-adab-eb2966d83dcd", "description": "Example PO: Dhikash. Replace with any member id from the operations response." },
+              { "key": "limit", "value": "5" },
+              { "key": "status", "value": "", "disabled": true, "description": "Comma-separated: PENDING_REVIEW,NEGOTIATION,APPROVED,REJECTED,PURCHASED" },
+              { "key": "search", "value": "", "disabled": true },
+              { "key": "from", "value": "", "disabled": true, "description": "YYYY-MM-DD" },
+              { "key": "to", "value": "", "disabled": true, "description": "YYYY-MM-DD" },
+              { "key": "page", "value": "1", "disabled": true }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/evaluations/queue",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "evaluations", "queue" ]
+            },
+            "description": "Powers the member drawer's 'Recent valuations'. Needs the TL / TH / ADMIN role — a PO token gets 403. Response: data.items[] (each has a nested vehicle object)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Comparison / demo routes",
+      "item": [
+        {
+          "name": "5. Home dashboard (role-aware)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [ { "key": "token", "value": "{{jwt}}", "type": "string" } ]
+            },
+            "query": [
+              { "key": "branchId", "value": "", "disabled": true },
+              { "key": "from", "value": "", "disabled": true, "description": "YYYY-MM-DD" },
+              { "key": "to", "value": "", "disabled": true, "description": "YYYY-MM-DD" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/home",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "home" ]
+            },
+            "description": "Caller's OWN team only (summary, avgTat, poPipeline, teamBreakdown). Contrast with /analytics/operations, which can filter to ANY team. Single from/to window vs. 4 fixed periods."
+          }
+        },
+        {
+          "name": "6. Analytics (funnel & distributions)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [ { "key": "token", "value": "{{jwt}}", "type": "string" } ]
+            },
+            "query": [
+              { "key": "branchId", "value": "", "disabled": true },
+              { "key": "from", "value": "", "disabled": true, "description": "YYYY-MM-DD" },
+              { "key": "to", "value": "", "disabled": true, "description": "YYYY-MM-DD" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/analytics",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "analytics" ]
+            },
+            "description": "Market-style analytics: status funnel with %, avg RF cost, make/fuel/body-type distributions, PO leaderboard, top price gaps. Needs TL/TH/ADMIN."
+          }
+        },
+        {
+          "name": "7. Users directory",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [ { "key": "token", "value": "{{jwt}}", "type": "string" } ]
+            },
+            "query": [
+              { "key": "role", "value": "TH", "description": "ADMIN | TH | TL | PO" },
+              { "key": "limit", "value": "100" },
+              { "key": "branchId", "value": "", "disabled": true },
+              { "key": "status", "value": "", "disabled": true, "description": "true | false" },
+              { "key": "page", "value": "1", "disabled": true }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "users" ]
+            },
+            "description": "Paginated staff list (safe fields only). Where the TH/TL/PO dropdowns would come from in production; the dashboard reuses members[] from /analytics/operations instead."
+          }
+        },
+        {
+          "name": "8. Branches (uses {{organizationId}})",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [ { "key": "token", "value": "{{jwt}}", "type": "string" } ]
+            },
+            "query": [
+              { "key": "limit", "value": "100" },
+              { "key": "page", "value": "1", "disabled": true }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/organizations/{{organizationId}}/branches",
+              "host": [ "{{baseUrl}}" ],
+              "path": [ "organizations", "{{organizationId}}", "branches" ]
+            },
+            "description": "Branch master for your org. organizationId is filled automatically by running request #2 (Me)."
+          }
+        }
+      ]
+    }
+  ]
+}
